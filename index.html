@@ -5586,11 +5586,10 @@
             var accountData = {
                 '账号名称': nameInput.value.trim(),
                 '登录邮箱': emailInput.value.trim(),
-                '标签': selectedTags,
-                '状态': '待激活',
+                '账号状态': '待激活',
                 '健康度': 100,
                 '内容数': 0,
-                '创建时间': Date.now()
+                '最后活跃时间': Date.now()
             };
             
             // 调用API添加账号
