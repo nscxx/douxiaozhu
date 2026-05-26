@@ -5595,7 +5595,7 @@
             // 调用API添加账号
             BizOps.addAccount(accountData)
                 .then(function(result) {
-                    // 账号创建成功后的处理
+                    // 成功后关闭弹窗（已在addAccount里处理）
                 })
                 .catch(function(error) {
                     // 错误已由addAccount处理
@@ -8063,11 +8063,15 @@
                     fields: accountData
                 }]);
                 alert('账号添加成功！');
+                // 关闭弹窗
+                if (typeof closeNewAccountModal === 'function') closeNewAccountModal();
+                // 刷新账号列表
                 DataLoader.loadAccounts();
+                DataLoader.loadHomeData();
                 return result;
             } catch (error) {
                 console.error('添加账号失败:', error);
-                alert('添加账号失败，请重试');
+                alert('添加账号失败: ' + (error.message || '请重试'));
                 throw error;
             }
         }
