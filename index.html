@@ -7557,7 +7557,7 @@
                     const createdTime = item.created_time;
                     const fields = item.fields || {};
                     return createdTime && createdTime.startsWith(today) && 
-                           (fields['状态'] === '已发布' || fields['status'] === '已发布');
+                           (fields['内容状态'] === '已发布');
                 }).length : 0;
 
                 // 获取待审核凭证数
@@ -7644,7 +7644,7 @@
                 
                 accounts.forEach(item => {
                     const fields = item.fields || {};
-                    const health = parseFloat(fields['健康度'] || fields['health'] || 100);
+                    const health = parseFloat(fields['健康度'] || 100 || 100);
                     if (health >= 90) healthy++;
                     else if (health >= 70) warning++;
                     else if (health >= 50) abnormal++;
@@ -7785,7 +7785,7 @@
                         const tags = fields['标签'] || fields['tags'] || [];
                         const status = fields['状态'] || fields['status'] || '活跃';
                         const contentCount = fields['内容数'] || fields['content_count'] || 0;
-                        const health = fields['健康度'] || fields['health'] || 100;
+                        const health = fields['健康度'] || 100 || 100;
                         const lastActive = fields['最后活跃'] || fields['last_active'] || '未知';
                         
                         const statusClass = status === '活跃' ? 'active' : (status === '待激活' ? 'inactive' : 'error');
