@@ -5576,10 +5576,14 @@
                 return;
             }
             
-            // 收集选中的标签
-            var selectedTags = [];
+            // 收集选中的标签并按ABCD分类
+            var aTags = [], bTags = [], cTags = [], dTags = [];
             document.querySelectorAll('#newAccountModal .na-tag-btn.selected').forEach(function(tag) {
-                selectedTags.push(tag.textContent);
+                var text = tag.textContent.trim();
+                if (text.startsWith('A')) aTags.push(text);
+                else if (text.startsWith('B')) bTags.push(text);
+                else if (text.startsWith('C')) cTags.push(text);
+                else if (text.startsWith('D')) dTags.push(text);
             });
             
             // 收集表单数据
@@ -5589,7 +5593,11 @@
                 '账号状态': '待激活',
                 '健康度': 100,
                 '内容数': 0,
-                '最后活跃时间': Date.now()
+                '最后活跃时间': Date.now(),
+                'A标签': aTags,
+                'B标签': bTags,
+                'C标签': cTags.length > 0 ? cTags[0] : '',
+                'D标签': dTags.length > 0 ? dTags[0] : ''
             };
             
             // 调用API添加账号
