@@ -7550,18 +7550,18 @@
             try {
                 // 获取账号总数
                 const accountData = await FeishuAPI.getRecords(FeishuConfig.tables.accounts, { page_size: 500 });
-                const totalAccounts = accountData.records ? accountData.records.length : 0;
+                const totalAccounts = accountData.items ? accountData.items.length : 0;
 
                 // 获取今日生成内容数
                 const today = new Date().toISOString().split('T')[0];
                 const contentData = await FeishuAPI.getRecords(FeishuConfig.tables.contents, { page_size: 500 });
-                const todayGenerated = contentData.records ? contentData.records.filter(item => {
+                const todayGenerated = contentData.items ? contentData.items.filter(item => {
                     const createdTime = item.created_time;
                     return createdTime && createdTime.startsWith(today);
                 }).length : 0;
 
                 // 获取今日发布数
-                const todayPublished = contentData.records ? contentData.records.filter(item => {
+                const todayPublished = contentData.items ? contentData.items.filter(item => {
                     const createdTime = item.created_time;
                     const fields = item.fields || {};
                     return createdTime && createdTime.startsWith(today) && 
@@ -7570,7 +7570,7 @@
 
                 // 获取待审核凭证数
                 const credData = await FeishuAPI.getRecords(FeishuConfig.tables.credentials, { page_size: 500 });
-                const pendingCredentials = credData.records ? credData.records.filter(item => {
+                const pendingCredentials = credData.items ? credData.items.filter(item => {
                     const fields = item.fields || {};
                     return fields['状态'] === '待审核' || fields['status'] === '待审核';
                 }).length : 0;
@@ -7645,7 +7645,7 @@
         async loadHealthDistribution() {
             try {
                 const accountData = await FeishuAPI.getRecords(FeishuConfig.tables.accounts, { page_size: 500 });
-                const accounts = accountData.records || [];
+                const accounts = accountData.items || [];
                 
                 // 按健康度分组
                 let healthy = 0, warning = 0, abnormal = 0, banned = 0;
@@ -7702,7 +7702,7 @@
         async loadContentTrend() {
             try {
                 const contentData = await FeishuAPI.getRecords(FeishuConfig.tables.contents, { page_size: 500 });
-                const contents = contentData.records || [];
+                const contents = contentData.items || [];
                 
                 // 计算最近7天每天的数量
                 const days = [];
@@ -7744,7 +7744,7 @@
         async loadPendingCredentials() {
             try {
                 const credData = await FeishuAPI.getRecords(FeishuConfig.tables.credentials, { page_size: 500 });
-                const pendingList = credData.records ? credData.records.filter(item => {
+                const pendingList = credData.items ? credData.items.filter(item => {
                     const fields = item.fields || {};
                     return fields['状态'] === '待审核' || fields['status'] === '待审核';
                 }).slice(0, 5) : [];
@@ -7782,24 +7782,27 @@
         async loadAccounts() {
             try {
                 const accountData = await FeishuAPI.getRecords(FeishuConfig.tables.accounts, { page_size: 500 });
-                const accounts = accountData.records || [];
+                const accounts = accountData.items || [];
 
                 const tbody = document.querySelector('#page-accounts table tbody');
                 if (tbody) {
                     tbody.innerHTML = accounts.map(item => {
                         const fields = item.fields || {};
                         const id = item.record_id || 'N/A';
-                        const name = fields['账号名称'] || fields['account_name'] || '未命名';
-                        const tags = fields['标签'] || fields['tags'] || [];
-                        const status = fields['状态'] || fields['status'] || '活跃';
-                        const contentCount = fields['内容数'] || fields['content_count'] || 0;
-                        const health = fields['健康度'] || 100 || 100;
-                        const lastActive = fields['最后活跃'] || fields['last_active'] || '未知';
+                        const name = fields['账号名称'] || '未命名';
+                        const aTags = fields['A标签'] || [];
+                        const bTags = fields['B标签'] || [];
+                        const cTag = fields['C标签'] || '';
+                        const dTag = fields['D标签'] || '';
+                        const status = fields['账号状态'] || '活跃';
+                        const contentCount = fields['内容数'] || 0;
+                        const health = fields['健康度'] || 100;
                         
                         const statusClass = status === '活跃' ? 'active' : (status === '待激活' ? 'inactive' : 'error');
-                        const tagHtml = Array.isArray(tags) ? tags.map((tag, i) => 
+                        const allTags = [...(Array.isArray(aTags) ? aTags : []), ...(Array.isArray(bTags) ? bTags : []), cTag, dTag].filter(Boolean);
+                        const tagHtml = allTags.map((tag, i) => 
                             `<span class="tag ${i === 0 ? 'highlight' : ''}">${tag}</span>`
-                        ).join('') : `<span class="tag">${tags}</span>`;
+                        ).join('');
 
                         return `
                             <tr>
@@ -7809,7 +7812,7 @@
                                 <td><span class="status-badge ${statusClass}">${status}</span></td>
                                 <td>${contentCount}</td>
                                 <td>${health}%</td>
-                                <td>${lastActive}</td>
+                                <td>${fields['最后活跃时间'] ? new Date(typeof fields['最后活跃时间'] === 'number' ? fields['最后活跃时间'] : Date.now()).toLocaleDateString('zh-CN') : '-'}</td>
                                 <td>
                                     <button class="action-btn">编辑</button>
                                     <button class="action-btn">凭证历史</button>
@@ -7832,7 +7835,7 @@
         async loadMovies() {
             try {
                 const movieData = await FeishuAPI.getRecords(FeishuConfig.tables.movies, { page_size: 500 });
-                const movies = movieData.records || [];
+                const movies = movieData.items || [];
 
                 const movieGrid = document.querySelector('#page-movies .movie-grid');
                 if (movieGrid) {
@@ -7887,7 +7890,7 @@
         async loadTasks() {
             try {
                 const taskData = await FeishuAPI.getRecords(FeishuConfig.tables.tasks, { page_size: 500 });
-                const tasks = taskData.records || [];
+                const tasks = taskData.items || [];
 
                 // 更新任务统计
                 const taskStats = {
