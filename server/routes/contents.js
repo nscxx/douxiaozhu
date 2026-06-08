@@ -1,6 +1,21 @@
 const express = require('express');
 const router = express.Router();
 
+function execToObjects(db, sql, params) {
+  const result = db.exec(sql, params);
+  if (!result[0]) return [];
+  const columns = result[0].columns;
+  return result[0].values.map(row => {
+    const obj = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
+
+function execOne(db, sql, params) {
+  return execToObjects(db, sql, params)[0] || null;
+}
+
 // 列表
 router.get('/', (req, res) => {
   const { status, task_id, account_id, movie_id, page = 1, page_size = 100 } = req.query;
@@ -15,16 +30,12 @@ router.get('/', (req, res) => {
   if (movie_id) { where.push('c.movie_id = ?'); params.push(movie_id); }
   
   const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
-  
-  const countSql = `SELECT COUNT(*) as total FROM contents c ${whereClause}`;
-  const { total } = db.prepare(countSql).get(...params);
+  const totalRow = execOne(db, `SELECT COUNT(*) as total FROM contents c ${whereClause}`, params);
+  const total = totalRow ? totalRow.total : 0;
   
   const offset = (parseInt(page) - 1) * parseInt(page_size);
-  const listSql = `
-    SELECT c.*,
-      t.name as task_name,
-      a.name as account_name,
-      m.name as movie_name
+  const items = execToObjects(db, `
+    SELECT c.*, t.name as task_name, a.name as account_name, m.name as movie_name
     FROM contents c
     LEFT JOIN tasks t ON c.task_id = t.id
     LEFT JOIN accounts a ON c.account_id = a.id
@@ -32,8 +43,7 @@ router.get('/', (req, res) => {
     ${whereClause}
     ORDER BY c.created_at DESC
     LIMIT ? OFFSET ?
-  `;
-  const items = db.prepare(listSql).all(...params, parseInt(page_size), offset);
+  `, [...params, parseInt(page_size), offset]);
   
   res.json({ code: 0, data: { items, total, page: parseInt(page), page_size: parseInt(page_size) } });
 });
@@ -43,11 +53,8 @@ router.post('/', (req, res) => {
   const db = req.db;
   const { task_id, account_id, movie_id, type = '', content = '', status = '待发布', published_url = '' } = req.body;
   
-  const result = db.prepare(`
-    INSERT INTO contents (task_id, account_id, movie_id, type, content, status, published_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(task_id || null, account_id || null, movie_id || null, type, content, status, published_url);
-  
+  const result = db.run(`INSERT INTO contents (task_id, account_id, movie_id, type, content, status, published_url) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [task_id || null, account_id || null, movie_id || null, type, content, status, published_url]);
   res.json({ code: 0, data: { id: result.lastInsertRowid }, msg: '创建成功' });
 });
 
@@ -69,18 +76,14 @@ router.put('/:id', (req, res) => {
   fields.push("updated_at = datetime('now', 'localtime')");
   params.push(req.params.id);
   
-  const sql = `UPDATE contents SET ${fields.join(', ')} WHERE id = ?`;
-  const result = db.prepare(sql).run(...params);
-  
-  if (result.changes === 0) return res.json({ code: 404, msg: '内容不存在' });
+  const result = db.run(`UPDATE contents SET ${fields.join(', ')} WHERE id = ?`, params);
   res.json({ code: 0, msg: '更新成功' });
 });
 
 // 删除
 router.delete('/:id', (req, res) => {
   const db = req.db;
-  const result = db.prepare('DELETE FROM contents WHERE id = ?').run(req.params.id);
-  if (result.changes === 0) return res.json({ code: 404, msg: '内容不存在' });
+  const result = db.run('DELETE FROM contents WHERE id = ?', [req.params.id]);
   res.json({ code: 0, msg: '删除成功' });
 });
 
