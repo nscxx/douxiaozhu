@@ -1,6 +1,23 @@
 const express = require('express');
 const router = express.Router();
 
+// 辅助：将sql.js exec结果转为对象数组
+function execToObjects(db, sql, params) {
+  const result = db.exec(sql, params);
+  if (!result[0]) return [];
+  const columns = result[0].columns;
+  return result[0].values.map(row => {
+    const obj = {};
+    columns.forEach((col, i) => { obj[col] = row[i]; });
+    return obj;
+  });
+}
+
+function execOne(db, sql, params) {
+  const rows = execToObjects(db, sql, params);
+  return rows[0] || null;
+}
+
 // 列表
 router.get('/', (req, res) => {
   const { status, keyword, page = 1, page_size = 100 } = req.query;
@@ -9,27 +26,17 @@ router.get('/', (req, res) => {
   let where = [];
   let params = [];
   
-  if (status) {
-    where.push('status = ?');
-    params.push(status);
-  }
-  if (keyword) {
-    where.push('name LIKE ?');
-    params.push(`%${keyword}%`);
-  }
+  if (status) { where.push('status = ?'); params.push(status); }
+  if (keyword) { where.push('name LIKE ?'); params.push(`%${keyword}%`); }
   
   const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
   
-  // 总数
-  const countSql = `SELECT COUNT(*) as total FROM accounts ${whereClause}`;
-  const { total } = db.prepare(countSql).get(...params);
+  const totalRow = execOne(db, `SELECT COUNT(*) as total FROM accounts ${whereClause}`, params);
+  const total = totalRow ? totalRow.total : 0;
   
-  // 分页
   const offset = (parseInt(page) - 1) * parseInt(page_size);
-  const listSql = `SELECT * FROM accounts ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-  const list = db.prepare(listSql).all(...params, parseInt(page_size), offset);
+  const list = execToObjects(db, `SELECT * FROM accounts ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...params, parseInt(page_size), offset]);
   
-  // 解析JSON字段
   const items = list.map(item => ({
     ...item,
     a_tags: JSON.parse(item.a_tags || '[]'),
@@ -42,7 +49,7 @@ router.get('/', (req, res) => {
 // 单个查询
 router.get('/:id', (req, res) => {
   const db = req.db;
-  const item = db.prepare('SELECT * FROM accounts WHERE id = ?').get(req.params.id);
+  const item = execOne(db, 'SELECT * FROM accounts WHERE id = ?', [req.params.id]);
   if (!item) return res.json({ code: 404, msg: '账号不存在' });
   item.a_tags = JSON.parse(item.a_tags || '[]');
   item.b_tags = JSON.parse(item.b_tags || '[]');
@@ -56,11 +63,8 @@ router.post('/', (req, res) => {
   
   if (!name) return res.json({ code: 400, msg: '账号名称不能为空' });
   
-  const result = db.prepare(`
-    INSERT INTO accounts (name, a_tags, b_tags, c_tag, d_tag, status)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(name, JSON.stringify(a_tags), JSON.stringify(b_tags), c_tag, d_tag, status);
-  
+  const result = db.run(`INSERT INTO accounts (name, a_tags, b_tags, c_tag, d_tag, status) VALUES (?, ?, ?, ?, ?, ?)`,
+    [name, JSON.stringify(a_tags), JSON.stringify(b_tags), c_tag, d_tag, status]);
   res.json({ code: 0, data: { id: result.lastInsertRowid }, msg: '创建成功' });
 });
 
@@ -73,28 +77,13 @@ router.post('/batch', (req, res) => {
     return res.json({ code: 400, msg: '导入数据不能为空' });
   }
   
-  const insert = db.prepare(`
-    INSERT INTO accounts (name, a_tags, b_tags, c_tag, d_tag, status)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
+  const results = [];
+  for (const item of accounts) {
+    const result = db.run(`INSERT INTO accounts (name, a_tags, b_tags, c_tag, d_tag, status) VALUES (?, ?, ?, ?, ?, ?)`,
+      [item.name || '', JSON.stringify(item.a_tags || []), JSON.stringify(item.b_tags || []), item.c_tag || '', item.d_tag || '', item.status || '活跃']);
+    results.push({ id: result.lastInsertRowid, name: item.name });
+  }
   
-  const insertMany = db.transaction((items) => {
-    const results = [];
-    for (const item of items) {
-      const result = insert.run(
-        item.name || '',
-        JSON.stringify(item.a_tags || []),
-        JSON.stringify(item.b_tags || []),
-        item.c_tag || '',
-        item.d_tag || '',
-        item.status || '活跃'
-      );
-      results.push({ id: result.lastInsertRowid, name: item.name });
-    }
-    return results;
-  });
-  
-  const results = insertMany(accounts);
   res.json({ code: 0, data: { count: results.length, items: results }, msg: `成功导入${results.length}个账号` });
 });
 
@@ -121,18 +110,14 @@ router.put('/:id', (req, res) => {
   fields.push("updated_at = datetime('now', 'localtime')");
   params.push(req.params.id);
   
-  const sql = `UPDATE accounts SET ${fields.join(', ')} WHERE id = ?`;
-  const result = db.prepare(sql).run(...params);
-  
-  if (result.changes === 0) return res.json({ code: 404, msg: '账号不存在' });
+  const result = db.run(`UPDATE accounts SET ${fields.join(', ')} WHERE id = ?`, params);
   res.json({ code: 0, msg: '更新成功' });
 });
 
 // 删除
 router.delete('/:id', (req, res) => {
   const db = req.db;
-  const result = db.prepare('DELETE FROM accounts WHERE id = ?').run(req.params.id);
-  if (result.changes === 0) return res.json({ code: 404, msg: '账号不存在' });
+  const result = db.run('DELETE FROM accounts WHERE id = ?', [req.params.id]);
   res.json({ code: 0, msg: '删除成功' });
 });
 
