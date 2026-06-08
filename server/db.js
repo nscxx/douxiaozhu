@@ -1,23 +1,46 @@
-const Database = require('better-sqlite3');
+const initSqlJs = require('sql.js');
 const fs = require('fs');
 const path = require('path');
 
-function initDB(dbPath) {
+async function initDB(dbPath) {
   // 确保数据目录存在
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 
-  const db = new Database(dbPath);
+  const SQL = await initSqlJs();
+
+  let db;
   
-  // 开启WAL模式，提升并发性能
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  // 如果数据库文件已存在则加载
+  if (fs.existsSync(dbPath)) {
+    const fileBuffer = fs.readFileSync(dbPath);
+    db = new SQL.Database(fileBuffer);
+  } else {
+    db = new SQL.Database();
+  }
+
+  // 保存函数 - 每次写操作后持久化到文件
+  const saveDB = () => {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(dbPath, buffer);
+  };
+
+  // 包装run方法，自动保存，返回lastInsertRowid
+  const originalRun = db.run.bind(db);
+  db.run = function(sql, params) {
+    originalRun(sql, params);
+    // 获取自增ID
+    const idResult = db.exec('SELECT last_insert_rowid() as id');
+    const lastId = idResult[0] ? idResult[0].values[0][0] : 0;
+    saveDB();
+    return { lastInsertRowid: lastId };
+  };
 
   // 建表
-  db.exec(`
-    -- 账号表
+  db.run(`
     CREATE TABLE IF NOT EXISTS accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -31,9 +54,10 @@ function initDB(dbPath) {
       last_active_at TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-    );
+    )
+  `);
 
-    -- 电影表
+  db.run(`
     CREATE TABLE IF NOT EXISTS movies (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -45,9 +69,10 @@ function initDB(dbPath) {
       tags TEXT DEFAULT '[]',
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-    );
+    )
+  `);
 
-    -- 任务表
+  db.run(`
     CREATE TABLE IF NOT EXISTS tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -63,17 +88,19 @@ function initDB(dbPath) {
       updated_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (movie_id) REFERENCES movies(id),
       FOREIGN KEY (account_id) REFERENCES accounts(id)
-    );
+    )
+  `);
 
-    -- 标签表
+  db.run(`
     CREATE TABLE IF NOT EXISTS tags (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       category TEXT NOT NULL,
       name TEXT NOT NULL,
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
-    );
+    )
+  `);
 
-    -- 内容表
+  db.run(`
     CREATE TABLE IF NOT EXISTS contents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       task_id INTEGER,
@@ -88,9 +115,10 @@ function initDB(dbPath) {
       FOREIGN KEY (task_id) REFERENCES tasks(id),
       FOREIGN KEY (account_id) REFERENCES accounts(id),
       FOREIGN KEY (movie_id) REFERENCES movies(id)
-    );
+    )
+  `);
 
-    -- 凭证审核表
+  db.run(`
     CREATE TABLE IF NOT EXISTS credentials (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id INTEGER,
@@ -101,36 +129,34 @@ function initDB(dbPath) {
       audit_time TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime')),
       FOREIGN KEY (account_id) REFERENCES accounts(id)
-    );
-
-    -- 索引
-    CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status);
-    CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-    CREATE INDEX IF NOT EXISTS idx_tasks_movie ON tasks(movie_id);
-    CREATE INDEX IF NOT EXISTS idx_tasks_account ON tasks(account_id);
-    CREATE INDEX IF NOT EXISTS idx_tags_category ON tags(category);
-    CREATE INDEX IF NOT EXISTS idx_contents_status ON contents(status);
-    CREATE INDEX IF NOT EXISTS idx_credentials_status ON credentials(status);
+    )
   `);
 
-  // 初始化默认标签数据
-  const tagCount = db.prepare('SELECT COUNT(*) as count FROM tags').get();
-  if (tagCount.count === 0) {
-    const insertTag = db.prepare('INSERT INTO tags (category, name) VALUES (?, ?)');
+  // 索引
+  db.run('CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_movie ON tasks(movie_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tasks_account ON tasks(account_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_tags_category ON tags(category)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_contents_status ON contents(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_credentials_status ON credentials(status)');
+
+  // 初始化默认标签
+  const tagResult = db.exec('SELECT COUNT(*) as count FROM tags');
+  const tagCount = tagResult[0] ? tagResult[0].values[0][0] : 0;
+  
+  if (tagCount === 0) {
     const defaults = {
       A: ['文艺', '悬疑', '爱情', '科幻', '动作', '喜剧', '动画', '纪录片', '恐怖', '战争'],
       B: ['经典', '热门', '冷门', '获奖', '独立'],
       C: ['国产', '欧美', '日韩', '东南亚'],
       D: ['高评分', '话题性', '长尾', '时效性']
     };
-    const insertMany = db.transaction((tags) => {
-      for (const [category, names] of Object.entries(tags)) {
-        for (const name of names) {
-          insertTag.run(category, name);
-        }
+    for (const [category, names] of Object.entries(defaults)) {
+      for (const name of names) {
+        db.run('INSERT INTO tags (category, name) VALUES (?, ?)', [category, name]);
       }
-    });
-    insertMany(defaults);
+    }
     console.log('✅ 默认标签数据已初始化');
   }
 
