@@ -1,0 +1,5 @@
+.wrap { padding: 16px; }
+.name { font-size: 18px; font-weight: 700; }
+.meta { color: #999; font-size: 12px; margin: 8px 0; }
+.copy { background: #fff; padding: 12px; border-radius: 8px; margin: 12px 0; white-space: pre-wrap; }
+button { margin-top: 10px; }

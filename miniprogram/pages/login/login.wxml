@@ -1,0 +1,7 @@
+<view class="wrap">
+  <view class="logo">🌿 豆小助</view>
+  <input placeholder="用户名" bindinput="onUser" />
+  <input password placeholder="密码" bindinput="onPass" />
+  <view class="err">{{err}}</view>
+  <button class="btn-primary" bindtap="submit">登录</button>
+</view>

@@ -1,0 +1,2 @@
+page { background: #f5f7fa; color: #333; }
+.btn-primary { background: #52c41a; color: #fff; }

@@ -1,0 +1,5 @@
+.wrap { padding: 48px 24px; }
+.logo { font-size: 28px; font-weight: 700; margin-bottom: 24px; color: #389e0d; }
+input { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 12px; }
+.err { color: #ff4d4f; min-height: 20px; font-size: 13px; }
+button { margin-top: 12px; }

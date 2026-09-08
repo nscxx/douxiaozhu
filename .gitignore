@@ -1,2 +1,6 @@
-node_modules/\n.vercel/
+node_modules/
 .vercel/
+server/data/
+server/uploads/
+*.log
+.DS_Store

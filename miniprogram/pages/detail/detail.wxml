@@ -1,0 +1,8 @@
+<view class="wrap" wx:if="{{item}}">
+  <view class="name">{{item.movie_name}} · {{item.type}}</view>
+  <view class="meta">{{item.account_name}} · {{item.status}}</view>
+  <view class="copy">{{item.content}}</view>
+  <button bindtap="copy">复制文案</button>
+  <button class="btn-primary" wx:if="{{item.status==='待领取'}}" bindtap="claim">领取任务</button>
+  <button class="btn-primary" wx:if="{{item.status==='已领取' || item.status==='已拒绝'}}" bindtap="goSubmit">去提交凭证</button>
+</view>

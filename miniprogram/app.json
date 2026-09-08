@@ -1,0 +1,23 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/hall/hall",
+    "pages/detail/detail",
+    "pages/submit/submit",
+    "pages/mine/mine"
+  ],
+  "window": {
+    "navigationBarTitleText": "豆小助",
+    "navigationBarBackgroundColor": "#52c41a",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#999",
+    "selectedColor": "#389e0d",
+    "list": [
+      { "pagePath": "pages/hall/hall", "text": "大厅" },
+      { "pagePath": "pages/mine/mine", "text": "我的" }
+    ]
+  }
+}

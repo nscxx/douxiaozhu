@@ -1,0 +1,6 @@
+<view class="wrap">
+  <input placeholder="豆瓣发布链接" bindinput="onUrl" />
+  <button bindtap="chooseImg">上传截图</button>
+  <view class="ok" wx:if="{{imagePath}}">已上传 {{imagePath}}</view>
+  <button class="btn-primary" bindtap="submit">提交审核</button>
+</view>

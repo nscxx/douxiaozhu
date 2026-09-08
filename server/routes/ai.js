@@ -1,34 +1,61 @@
 const express = require('express');
+const { ok, fail, parseTags } = require('../db-utils');
+const { generateContent } = require('../lib/ai');
+const { syncTaskStatus } = require('../lib/ops');
+const { writeLog } = require('../lib/ops');
+const { roles } = require('../middleware/auth');
 const router = express.Router();
 
-// AI内容生成（占位，后续接入火山引擎API）
-router.post('/generate', async (req, res) => {
-  const { movie_name, account_name, content_type, movie_info, prompt } = req.body;
-  
-  // TODO: 接入火山引擎大模型API
-  // 当前返回占位响应
-  res.json({
-    code: 0,
-    data: {
-      content: `[AI生成占位] ${content_type || '内容'} - ${movie_name || '电影'}`,
-      status: '待接入AI',
-      message: 'AI内容生成功能待接入火山引擎API，请在配置中设置API Key后使用'
-    }
-  });
+router.post('/generate', roles('admin', 'reviewer'), async (req, res) => {
+  const { movie_id, account_id, content_type, prompt, save = true } = req.body || {};
+  if (!movie_id || !account_id) return fail(res, 400, '请选择电影和账号');
+  const movie = parseTags(req.db.prepare('SELECT * FROM movies WHERE id = ?').get(movie_id));
+  const account = parseTags(req.db.prepare('SELECT * FROM accounts WHERE id = ?').get(account_id));
+  if (!movie || !account) return fail(res, 404, '电影或账号不存在');
+  const type = content_type || '影评';
+  const content = await generateContent(req.db, { movie, account, type, extraPrompt: prompt });
+  let id = null;
+  if (save) {
+    const result = req.db.prepare(
+      `INSERT INTO contents (account_id, movie_id, type, content, status)
+       VALUES (?, ?, ?, ?, '待领取')`
+    ).run(account_id, movie_id, type, content);
+    id = result.lastInsertRowid;
+    writeLog(req.db, req, {
+      action_type: 'content', object_type: 'content', object_id: id,
+      description: `AI生成 ${type}《${movie.name}》`, after_status: '待领取'
+    });
+  }
+  return ok(res, { id, content, status: '待领取' });
 });
 
-// 批量AI内容生成
-router.post('/batch-generate', async (req, res) => {
-  const { tasks } = req.body;
-  
-  // TODO: 批量调用AI生成
-  res.json({
-    code: 0,
-    data: {
-      results: [],
-      message: '批量AI生成功能待接入火山引擎API'
+router.post('/batch-generate', roles('admin', 'reviewer'), async (req, res) => {
+  const { task_id, content_ids } = req.body || {};
+  let rows = [];
+  if (task_id) {
+    rows = req.db.prepare(`SELECT * FROM contents WHERE task_id = ? AND status = '待生成'`).all(task_id);
+  } else if (Array.isArray(content_ids) && content_ids.length) {
+    const placeholders = content_ids.map(() => '?').join(',');
+    rows = req.db.prepare(`SELECT * FROM contents WHERE id IN (${placeholders}) AND status = '待生成'`).all(...content_ids);
+  } else {
+    rows = req.db.prepare(`SELECT * FROM contents WHERE status = '待生成' LIMIT 50`).all();
+  }
+  const results = [];
+  for (const row of rows) {
+    const movie = parseTags(req.db.prepare('SELECT * FROM movies WHERE id = ?').get(row.movie_id) || {});
+    const account = parseTags(req.db.prepare('SELECT * FROM accounts WHERE id = ?').get(row.account_id) || {});
+    try {
+      const text = await generateContent(req.db, { movie, account, type: row.type });
+      req.db.prepare(
+        `UPDATE contents SET content = ?, status = '待领取', updated_at = datetime('now', 'localtime') WHERE id = ?`
+      ).run(text, row.id);
+      if (row.task_id) syncTaskStatus(req.db, row.task_id);
+      results.push({ id: row.id, ok: true });
+    } catch (err) {
+      results.push({ id: row.id, ok: false, error: err.message });
     }
-  });
+  }
+  return ok(res, { count: results.filter((r) => r.ok).length, results });
 });
 
 module.exports = router;
