@@ -78,7 +78,9 @@ router.get('/calendar', (req, res) => {
     GROUP BY date(created_at)
   `).all(start, end);
   const items = req.db.prepare(`
-    SELECT t.*, m.name as movie_name, a.name as account_name
+    SELECT t.*, m.name as movie_name, a.name as account_name,
+      (SELECT COUNT(*) FROM contents c WHERE c.task_id = t.id) as content_total,
+      (SELECT COUNT(*) FROM contents c WHERE c.task_id = t.id AND c.status = '已通过') as content_done
     FROM tasks t
     LEFT JOIN movies m ON t.movie_id = m.id
     LEFT JOIN accounts a ON t.account_id = a.id
