@@ -5,7 +5,7 @@ Express + SQLite。同时托管管理后台、执行者 H5、上传文件和 RES
 ```bash
 npm install
 npm start
-# http://localhost:3000
+# http://localhost:3001
 ```
 
 鉴权：除 `/api/health`、`POST /api/auth/login` 外均需 `Authorization: Bearer <token>`。

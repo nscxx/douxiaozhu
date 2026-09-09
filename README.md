@@ -10,8 +10,8 @@ npm install
 npm start
 ```
 
-- 管理后台：http://localhost:3000/  （admin / admin123）
-- 执行者 H5：http://localhost:3000/worker/  （worker / worker123）
+- 管理后台：http://localhost:3001/  （admin / admin123）
+- 执行者 H5：http://localhost:3001/worker/  （worker / worker123）
 - 审核员：reviewer / reviewer123
 
 **请立即修改默认密码。** 飞书/Coze 已移除，请到飞书开放平台作废历史上泄露过的 App Secret。
@@ -20,7 +20,7 @@ npm start
 
 | 变量 | 说明 | 默认 |
 |------|------|------|
-| PORT | 端口 | 3000 |
+| PORT | 端口 | 3001 |
 | DB_PATH | SQLite 路径 | ./data/douxiaozhu.db |
 | JWT_SECRET | JWT 密钥 | 开发默认值，生产必须改 |
 | VOLCENGINE_API_KEY | 火山引擎 API Key | 空则使用本地模板生成 |

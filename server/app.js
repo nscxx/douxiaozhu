@@ -20,7 +20,7 @@ const workerRoutes = require('./routes/worker');
 const uploadRoutes = require('./routes/upload');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const rootDir = path.join(__dirname, '..');
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, 'uploads');
 
