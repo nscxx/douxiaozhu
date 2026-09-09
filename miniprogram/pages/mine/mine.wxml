@@ -1,0 +1,9 @@
+<view class="stats">
+  <view>通过 {{stats.passed || 0}}</view>
+  <view>驳回 {{stats.rejected || 0}}</view>
+  <view>审核中 {{stats.auditing || 0}}</view>
+</view>
+<view class="card" wx:for="{{items}}" wx:key="id">
+  <view>{{item.movie_name}} · {{item.type}}</view>
+  <view class="meta">{{item.status}}</view>
+</view>

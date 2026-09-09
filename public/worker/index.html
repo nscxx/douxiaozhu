@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>豆小助 · 执行端</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%2352c41a' width='32' height='32' rx='8'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/public/worker/worker.css">
+</head>
+<body>
+  <div id="loginView" class="screen">
+    <div class="logo">🌿 豆小助</div>
+    <p class="sub">执行者领取任务 · 上传发布凭证</p>
+    <input id="loginUser" placeholder="用户名" value="worker">
+    <input id="loginPass" type="password" placeholder="密码" value="worker123">
+    <div class="err" id="loginErr"></div>
+    <button class="primary" onclick="login()">登录</button>
+  </div>
+
+  <div id="appView" class="screen hidden">
+    <header>
+      <div>
+        <div class="title">任务大厅</div>
+        <div class="who" id="who"></div>
+      </div>
+      <button class="ghost" onclick="logout()">退出</button>
+    </header>
+    <div class="stats" id="stats"></div>
+    <div class="tabs">
+      <div class="tab active" data-tab="claimable" onclick="switchTab('claimable')">待领取</div>
+      <div class="tab" data-tab="mine" onclick="switchTab('mine')">进行中</div>
+      <div class="tab" data-tab="done" onclick="switchTab('done')">我的记录</div>
+    </div>
+    <div id="list"></div>
+  </div>
+
+  <div id="detailView" class="screen hidden"></div>
+  <script src="/public/worker/worker.js"></script>
+</body>
+</html>

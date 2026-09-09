@@ -1,0 +1,9 @@
+<view class="tabs">
+  <view class="tab {{tab==='claimable'?'on':''}}" data-tab="claimable" bindtap="switchTab">待领取</view>
+  <view class="tab {{tab==='mine'?'on':''}}" data-tab="mine" bindtap="switchTab">进行中</view>
+</view>
+<view class="card" wx:for="{{items}}" wx:key="id" data-id="{{item.id}}" bindtap="openDetail">
+  <view class="name">{{item.movie_name}} · {{item.type}}</view>
+  <view class="meta">{{item.account_name}} · {{item.status}}</view>
+</view>
+<view class="empty" wx:if="{{!items.length}}">暂无任务</view>
